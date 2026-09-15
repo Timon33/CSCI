@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Tuple, List, Optional, Dict
 
 from copy import deepcopy
+from math import isclose
 
 
 @dataclass
@@ -22,31 +23,75 @@ class CSCI_Instance:
 
     def __init__(self, job_infos: List[Tuple[float, float, float]]):
         job_infos = [JobInfo(*job_info) for job_info in job_infos]
-        self.job_infos = sorted(job_infos, key=lambda x: x.release_time)
+
+        # `release` needs job_infos sorted by release time, so internal job ids
+        # are positions in the sorted list. `original_ids` maps them back to the
+        # order the jobs were given in, for the output. The sort is stable, so
+        # jobs released simultaneously keep their input order.
+        self.original_ids = sorted(range(len(job_infos)),
+                                   key=lambda i: job_infos[i].release_time)
+        self.job_infos = [job_infos[i] for i in self.original_ids]
 
     def solve(self) -> Tuple[float, List[Tuple[int, float, float]]]:
-        time, jobs = self.next_releases(-1)
-        print("Starting solve", time, jobs)
-        return self.dfs(time, jobs, None)
+        """Total completion time and the schedule, in chronological order."""
+        if len(self.job_infos) == 0:
+            return 0, []
 
-    def next_releases(self, time: float) -> Tuple[float, Dict[int, OpenJob]]:
-        next_release_time = -1
+        tct, schedule = self.dfs(self.job_infos[0].release_time, {}, None, 0)
+
+        # dfs builds the schedule back to front as the recursion unwinds
+        schedule.reverse()
+
+        return tct, self.merge_intervals(
+            [(self.original_ids[job_id], start, duration)
+             for job_id, start, duration in schedule])
+
+    @staticmethod
+    def merge_intervals(schedule: List[Tuple[int, float, float]]) \
+            -> List[Tuple[int, float, float]]:
+        """Join back-to-back intervals of the same job into one.
+
+        A gap between two intervals of the same job means it was interrupted
+        and idled over, which stays two intervals.
+        """
+        merged: List[Tuple[int, float, float]] = []
+
+        for job_id, start, duration in schedule:
+            if merged:
+                last_id, last_start, last_duration = merged[-1]
+
+                if last_id == job_id and isclose(last_start + last_duration, start,
+                                                 rel_tol=1e-9, abs_tol=1e-9):
+                    # recompute the length from the ends, so repeated merges do
+                    # not accumulate rounding error
+                    merged[-1] = (last_id, last_start, start - last_start + duration)
+                    continue
+
+            merged.append((job_id, start, duration))
+
+        return merged
+
+    def release(self, time: float, released_count: int) -> Tuple[Dict[int, OpenJob], int]:
+        """All jobs released at or before `time` that are not released yet.
+
+        `released_count` is the number of jobs already released; since
+        `job_infos` is sorted by release time, it is a frontier into the list
+        and each job is handed out exactly once.
+        """
         new_jobs: Dict[int, OpenJob] = {}
-        for i, job_info in enumerate(self.job_infos):
-            if next_release_time > -1:
-                if job_info.release_time == next_release_time:
-                    new_jobs[i] = OpenJob(job_info.processing_time, 0)
-                else:
-                    break
+        i = released_count
 
-            if job_info.release_time > time:
-                next_release_time = job_info.release_time
-                new_jobs[i] = OpenJob(job_info.processing_time, 0)
+        while i < len(self.job_infos) and self.job_infos[i].release_time <= time:
+            new_jobs[i] = OpenJob(self.job_infos[i].processing_time, 0)
+            i += 1
 
-        if next_release_time > -1:
-            return next_release_time, new_jobs
+        return new_jobs, i
+
+    def next_release_time(self, released_count: int) -> float:
+        if released_count < len(self.job_infos):
+            return self.job_infos[released_count].release_time
         else:
-            return float("inf"), {}
+            return float("inf")
 
     def add_interruption_penalty(self, open_jobs: Dict[int, OpenJob], interrupted_job_id) -> None:
         open_jobs[interrupted_job_id].k += 1
@@ -60,17 +105,23 @@ class CSCI_Instance:
     def dfs(self,
             current_time,
             open_jobs: Dict[int, OpenJob],
-            last_job_id: Optional[int])\
+            last_job_id: Optional[int],
+            released_count: int)\
         -> Tuple[float, List[Tuple[int, float, float]]]:
 
         min_completion_time = float("inf")
         optimal_solution = None
 
-        next_release_time, future_jobs = self.next_releases(current_time)
-        print(current_time, open_jobs, next_release_time, future_jobs, last_job_id)
+        # Whatever became available at or before now is ours to schedule, no
+        # matter which branch jumped us here. Never mutate `open_jobs` itself,
+        # the union below shares its OpenJob values with the caller.
+        new_jobs, released_count = self.release(current_time, released_count)
+        open_jobs = open_jobs | new_jobs
+
+        next_release_time = self.next_release_time(released_count)
 
         # Nothing to do anymore
-        if len(open_jobs) == 0 and len(future_jobs) == 0:
+        if len(open_jobs) == 0 and next_release_time == float("inf"):
             return 0, []
 
         for next_job_id, next_job in open_jobs.items():
@@ -84,7 +135,7 @@ class CSCI_Instance:
             if next_release_time < finish_time:
                 # next job released first
                 updated_open_jobs[next_job_id].remaining_time -= next_release_time - current_time
-                tct, solution = self.dfs(next_release_time, updated_open_jobs | deepcopy(future_jobs), next_job_id)
+                tct, solution = self.dfs(next_release_time, updated_open_jobs, next_job_id, released_count)
                 solution.append((next_job_id, current_time, next_release_time - current_time))
 
 
@@ -96,11 +147,7 @@ class CSCI_Instance:
                 # current job ended
                 del updated_open_jobs[next_job_id]
 
-                if next_release_time == finish_time:
-                    # jobs released exactly at the completion time
-                    updated_open_jobs |= deepcopy(future_jobs)
-
-                tct, solution = self.dfs(finish_time, updated_open_jobs, None)
+                tct, solution = self.dfs(finish_time, updated_open_jobs, None, released_count)
                 tct += finish_time
                 solution.append((next_job_id, current_time, finish_time - current_time))
 
@@ -109,14 +156,14 @@ class CSCI_Instance:
                     optimal_solution = solution
 
         # idle
-        if len(future_jobs) > 0:
+        if next_release_time < float("inf"):
             idle_open_jobs = deepcopy(open_jobs)
 
             if last_job_id is not None:
                 # idling interrupts the job that was running
                 self.add_interruption_penalty(idle_open_jobs, last_job_id)
 
-            tct, solution = self.dfs(next_release_time, idle_open_jobs | deepcopy(future_jobs), None)
+            tct, solution = self.dfs(next_release_time, idle_open_jobs, None, released_count)
 
             if tct < min_completion_time:
                 min_completion_time = tct
