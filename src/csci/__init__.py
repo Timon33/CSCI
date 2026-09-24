@@ -1,13 +1,13 @@
 import sys
 
 from .io_util import read_input,read_output
-from .offline_algorithms import CSCI_Instance
-from testing_tool import test_output
+from csci.offline.dfs_bruteforce import DFS_Solver
+from tests.testing_tool import test_output
 
 
 def main() -> None:
     _, jobs = read_input(sys.argv[1])
-    instance = CSCI_Instance(jobs)
+    instance = DFS_Solver(jobs)
 
     tct, schedule = instance.solve()
     print(tct)

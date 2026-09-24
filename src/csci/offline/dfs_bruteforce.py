@@ -4,26 +4,19 @@ from typing import Tuple, List, Optional, Dict
 from copy import deepcopy
 from math import isclose
 
+from csci.io_util import JobInfo
 
-@dataclass
-class JobInfo:
-    release_time: float
-    processing_time: float
-    alpha: float
 
 @dataclass
 class OpenJob:
     remaining_time: float
     k: int
 
-
-class CSCI_Instance:
+class DFS_Solver:
 
     job_infos = List[JobInfo]
 
-    def __init__(self, job_infos: List[Tuple[float, float, float]]):
-        job_infos = [JobInfo(*job_info) for job_info in job_infos]
-
+    def __init__(self, job_infos: List[JobInfo]):
         # `release` needs job_infos sorted by release time, so internal job ids
         # are positions in the sorted list. `original_ids` maps them back to the
         # order the jobs were given in, for the output. The sort is stable, so
