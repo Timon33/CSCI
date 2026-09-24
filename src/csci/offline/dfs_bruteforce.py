@@ -4,7 +4,8 @@ from typing import Tuple, List, Optional, Dict
 from copy import deepcopy
 from math import isclose
 
-from csci.io_util import JobInfo
+from csci.io_util import JobInfo, JobInterval
+from csci.offline.solver import Solver
 
 
 @dataclass
@@ -12,7 +13,7 @@ class OpenJob:
     remaining_time: float
     k: int
 
-class DFSSolver:
+class DFSSolver(Solver):
 
     job_infos = List[JobInfo]
 
@@ -25,7 +26,7 @@ class DFSSolver:
                                    key=lambda i: job_infos[i].release_time)
         self.job_infos = [job_infos[i] for i in self.original_ids]
 
-    def solve(self) -> Tuple[float, List[Tuple[int, float, float]]]:
+    def solve(self) -> Tuple[float, List[JobInterval]]:
         """Total completion time and the schedule, in chronological order."""
         if len(self.job_infos) == 0:
             return 0, []
@@ -34,10 +35,11 @@ class DFSSolver:
 
         # dfs builds the schedule back to front as the recursion unwinds
         schedule.reverse()
-
-        return tct, self.merge_intervals(
+        merged_intervals = self.merge_intervals(
             [(self.original_ids[job_id], start, duration)
              for job_id, start, duration in schedule])
+
+        return tct, [JobInterval(*interval) for interval in merged_intervals]
 
     @staticmethod
     def merge_intervals(schedule: List[Tuple[int, float, float]]) \
