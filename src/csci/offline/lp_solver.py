@@ -1,5 +1,5 @@
 from typing import List, Tuple, Dict, Optional
-from itertools import batched
+from itertools import batched, accumulate
 
 from csci.io_util import JobInfo, JobInterval
 from csci.offline.solver import Solver
@@ -49,11 +49,23 @@ class LPSolver(Solver):
         N = len(self.job_infos)
         best_tct = float('inf')
         best_schedule = None
+        best_ordering = None
 
         # iterate over all possible distribution of N - 1 interrupts among N tasks
         for k_distribution in self.distribute_interrupts(N - 1, N):
             print("Now working on k_dist:", k_distribution)
+            processed = 0
             ks = {k: v for k, v in enumerate(k_distribution)}
+
+            # calculate total penalized processing times
+            qs = [job.alpha ** ks[j_id] * job.processing_time
+                  for j_id, job in enumerate(self.job_infos)]
+
+            # optimization: if the lower bound of the optimum is larger than best, skip this shape
+            if best_tct is not None and list(accumulate(qs))[-1] >= best_tct:
+                print("Skip k_dist. Optimum LB", list(accumulate(qs))[-1])
+                continue
+
             # generate all valid shapes where task k is interrupted v times
             for ordering, last_interval_index in LPSolver.valid_shapes(None, ks):
                 # construct the LP
@@ -62,10 +74,6 @@ class LPSolver(Solver):
                 # lb <= x <= ub
 
                 # x = [s_1, t_1, s_2, t_2, ...], len(x) = 2 * len(ordering)
-
-                # calculate total penalized processing times
-                qs = [job.alpha ** ks[j_id] * job.processing_time
-                      for j_id, job in enumerate(self.job_infos)]
 
 
                 # 1. total processing time constraints
@@ -115,10 +123,18 @@ class LPSolver(Solver):
                     if lp.fun < best_tct:
                         best_tct = lp.fun
                         best_schedule = lp.x
+                        best_ordering = ordering
+                        print("best solution improved to: ", best_tct)
+                        print("ordering:", best_ordering)
+                        print("x:", best_schedule)
                 else:
                     print("No solution found", ordering)
 
-        best_schedule = [JobInterval(ordering[i], s, t) for i, (s, t) in
+                processed += 1
+
+            print("processed jobs:", processed)
+
+        best_schedule = [JobInterval(best_ordering[i], s, t) for i, (s, t) in
                          enumerate(batched(best_schedule, 2))]
         return best_tct, best_schedule
 
