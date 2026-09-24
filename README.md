@@ -1,8 +1,25 @@
-Sync:
-```aiignore
+## Setup
+
+Install dependencies (including dev dependencies like `pytest`):
+```
 uv sync
 ```
-Run:
-```aiignore
-uv run python -m src.csci <inputfile>
+
+## Run
+
+Solve a scheduling instance from an input file:
+```
+uv run csci <inputfile>
+```
+
+Example:
+```
+uv run csci examples/input_1.txt
+```
+
+## Test
+
+Run the test suite:
+```
+uv run pytest
 ```
