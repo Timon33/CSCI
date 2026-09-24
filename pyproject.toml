@@ -7,7 +7,10 @@ authors = [
     { name = "Timon33", email = "timon.giess@gmx.de" }
 ]
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "scipy>=1.18.1",
+    "scipy-stubs~=1.18.1",
+]
 
 [project.scripts]
 csci = "csci:main"
