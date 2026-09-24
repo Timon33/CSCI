@@ -12,7 +12,7 @@ class OpenJob:
     remaining_time: float
     k: int
 
-class DFS_Solver:
+class DFSSolver:
 
     job_infos = List[JobInfo]
 

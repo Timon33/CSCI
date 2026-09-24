@@ -20,7 +20,7 @@ def read_input(filename: str) -> Tuple[int, List[JobInfo]]:
         n = int(lines[0])
         jobs: List[JobInfo] = []
         for i in range(n):
-            r, p, a = lines[i].split(",")
+            r, p, a = lines[i + 1].split(",")
             # TODO: float format can cause precision issues
             jobs.append(JobInfo(float(r), float(p), float(a)))
 
