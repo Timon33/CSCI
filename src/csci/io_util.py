@@ -1,27 +1,42 @@
+from dataclasses import dataclass
 from typing import List, Tuple
 
+@dataclass
+class JobInfo:
+    release_time: float
+    processing_time: float
+    alpha: float
 
-def read_input(filename: str) -> Tuple[int, List[Tuple[float, float, float]]]:
+@dataclass
+class JobInterval:
+    job_id: int
+    start_time: float
+    duration: float
+
+
+def read_input(filename: str) -> Tuple[int, List[JobInfo]]:
     with open(filename, "r") as f:
         lines = f.readlines()
         n = int(lines[0])
-        jobs: List[Tuple[float, float, float]] = []
+        jobs: List[JobInfo] = []
         for i in range(n):
-            jobs.append(tuple(map(float, lines[i + 1].split(","))))
-            assert len(jobs[-1]) == 3
+            r, p, a = lines[i].split(",")
+            # TODO: float format can cause precision issues
+            jobs.append(JobInfo(float(r), float(p), float(a)))
 
         assert len(jobs) == n
         return n, jobs
 
 
-def read_output(filename: str) -> Tuple[int, int, List[Tuple[float, float, float]]]:
+def read_output(filename: str) -> Tuple[int, float, List[JobInterval]]:
     with open(filename, "r") as f:
         lines = f.readlines()
         n = len(lines) - 1
-        schedule: List[Tuple[float, float, float]] = []
+        schedule: List[JobInterval] = []
         for i in range(n):
-            spl = lines[i].split(",")
-            schedule.append((int(spl[0]) - 1, float(spl[1]), float(spl[2])))
-            # todo: is assert needed?
+            job_id, start_time, duration = lines[i].split(",")
+            # TODO: float format can cause precision issues
+            schedule.append(JobInterval(int(job_id) - 1, float(start_time), float(duration)))
         score = float(lines[-1])
         return n, score, schedule
+
