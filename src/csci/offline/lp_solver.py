@@ -51,8 +51,10 @@ class LPSolver(Solver):
         best_schedule = None
         best_ordering = None
 
-        # iterate over all possible distribution of N - 1 interrupts among N tasks
-        for k_distribution in self.distribute_interrupts(N - 1, N):
+        budget = len({job.release_time for job in self.job_infos}) - 1
+
+        # iterate over all distributions of at most `budget` interrupts among N tasks
+        for k_distribution in self.distribute_interrupts(budget, N):
             print("Now working on k_dist:", k_distribution)
             processed = 0
             ks = {k: v for k, v in enumerate(k_distribution)}
@@ -80,11 +82,13 @@ class LPSolver(Solver):
                 b_eq = qs
                 A_eq = [[0] * (len(ordering) * 2) for _ in range(N)]
                 for i, job_id in enumerate(ordering):
+                    # t_i of every job should sum to q_i
                     A_eq[job_id][i * 2 + 1] = 1
 
                 # 2. non overlapping intervals
                 A_ub = [[0] * (len(ordering) * 2) for _ in range(len(ordering) - 1)]
                 for i in range(len(ordering) - 1):
+                    # s_i + t_i - s_(i+1) <= 0
                     A_ub[i][i * 2] = 1
                     A_ub[i][i * 2 + 1] = 1
                     A_ub[i][i * 2 + 2] = -1
@@ -94,6 +98,8 @@ class LPSolver(Solver):
                 # 3. release times
                 bounds = []
                 for i in ordering:
+                    # s_i >= r_i for every interval of that job, only strictly necessary
+                    # for first interval of a job combined with 2.
                     bounds.append([self.job_infos[i].release_time, None])
                     bounds.append([0, None])
 
