@@ -17,6 +17,8 @@ Example:
 uv run csci examples/input_1.txt
 ```
 
+The dfs solver exists for legacy reasons, use the lp solver (default if not overwritten)
+
 ## Test
 
 Run the test suite:

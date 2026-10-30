@@ -5,14 +5,14 @@ from typing import List
 from .io_util import read_input, JobInterval
 from csci.offline.dfs_bruteforce import DFSSolver
 from csci.offline.lp_solver import LPSolver
-from csci.offline.milp_solver import MILPSolver
 
-SOLVERS = {"lp": LPSolver, "milp": MILPSolver, "dfs": DFSSolver}
+SOLVERS = {"lp": LPSolver, "dfs": DFSSolver}
 
 
 def main() -> None:
     _, jobs = read_input(sys.argv[1])
     name = sys.argv[2] if len(sys.argv) > 2 else "lp"
+    print("WARNING: using dfs solver, THE DFS SOLVER CAN PRODUCE WRONG RESULTS, USE LP SOLVER")
     instance = SOLVERS[name](jobs)
 
     schedule: List[JobInterval] = []
