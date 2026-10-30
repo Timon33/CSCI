@@ -17,10 +17,13 @@ class JobInterval:
 def read_input(filename: str) -> Tuple[int, List[JobInfo]]:
     with open(filename, "r") as f:
         lines = f.readlines()
-        n = int(lines[0])
+        i = 0
+        while lines[i].startswith("--"): i += 1
+        n = int(lines[i])
         jobs: List[JobInfo] = []
-        for i in range(n):
-            r, p, a = lines[i + 1].split(",")
+        for l in lines[i+1:i+1+n]:
+            if l.startswith("--"): continue
+            r, p, a = l.split(",")
             # TODO: float format can cause precision issues
             jobs.append(JobInfo(float(r), float(p), float(a)))
 
